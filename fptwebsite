@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fishing Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .container {
+            margin: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            list-style: none;
+            margin: 20px 0;
+            padding: 0;
+        }
+
+        .pagination li {
+            margin: 0 10px;
+        }
+
+        .pagination li a {
+            color: black;
+            text-decoration: none;
+            padding: 8px 16px;
+        }
+
+        .pagination li.active a {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .pagination li a:hover:not(.active) {
+            background-color: #ddd;
+        }
+
+        .search-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .search-container input[type=text] {
+            padding: 10px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 5px;
+            width: 50%;
+        }
+
+        .search-container button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .top-five-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .top-five-container ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .top-five-container li {
+            margin: 0 10px;
+        }
+
+        .top-five-container span {
+            font-weight: bold;
+        }
+
+        .chart-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .chart {
+            width: 600px;
+            height: 400px;
+        }
+
+        .player-stats-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .player-stats-container h2 {
+            margin-bottom: 20px;
+        }
+
+        .player-stats-container table {
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .player-stats-container th,
+        .player-stats-container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .player-stats-container th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Fishing Data</h1>
+    </header>
+
+    <div class="container">
+        <div class="search-container">
+            <input type="text" id="search-bar" placeholder="Search...">
+            <button id="search-button">Search</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player Name</th>
+                        <th>Start Total</th>
+                        <th>Current Total</th>
+                        <th>FPT This Week</th>
+                        <th>Last Updated</th>
+                        <th>View Player</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pagination-container"></div>
+
+        <div class="top-five-container">
+            <ul id="top-five-fishers-container">
+            </ul>
+        </div>
+
+        <div class="top-five-container">
+            <ul id="top-five-fpt-fishers-container">
+            </ul>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+
+    <div id="player-stats-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="player-stats-container">
+                <h2 id="player-name"></h2>
+                <table>
+                    <tr>
+                        <th>Start Total</th>
+                        <td id="start-total"></td>
+                    </tr>
+                    <tr>
+                        <th>Current Total</th>
+                        <td id="current-total"></td>
+                    </tr>
+                    <tr>
+                        <th>FPT This Week</th>
+                        <td id="fpt-this-week"></td>
+                    </tr>
+                    <tr>
+                        <th>Last Updated</th>
+                        <td id="last-updated"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rows = [];
+        let filteredRows = [];
+        let currentPage = 1;
+        const rowsPerPage = 10;
+        let totalPages = 1;
+
+        const tableBody = document.getElementById('table-body');
+
+        const renderTable = () => {
+            tableBody.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const pageRows = filteredRows.slice(startIndex, endIndex);
+
+            pageRows.forEach(row => {
+                const columns = row.split(',');
+                const playerName = columns[0];
+                const startTotal = columns[1];
+                const currentTotal = columns[2];
+                const fptThisWeek = columns[3];
+                const lastUpdated = columns[4];
+
+                const tr = document.createElement('tr');
+                const tdPlayerName = document.createElement('td');
+                const tdStartTotal = document.createElement('td');
+                const tdCurrentTotal = document.createElement('td');
+                const tdFptThisWeek = document.createElement('td');
+                const tdLastUpdated = document.createElement('td');
+                const tdViewPlayer = document.createElement('td');
+                const viewPlayerLink = document.createElement('a');
+
+                tdPlayerName.innerText = playerName;
+                tdStartTotal.innerText = startTotal;
+                tdCurrentTotal.innerText = currentTotal;
+                tdFptThisWeek.innerText = fptThisWeek;
+                tdLastUpdated.innerText = lastUpdated;
+                viewPlayerLink.innerText = 'View';
+                viewPlayerLink.href = '#';
+                viewPlayerLink.addEventListener('click', () => {
+                    document.getElementById('player-name').innerText = playerName;
+                    document.getElementById('start-total').innerText = startTotal;
+                    document.getElementById('current-total').innerText = currentTotal;
+                    document.getElementById('fpt-this-week').innerText = fptThisWeek;
+                    document.getElementById('last-updated').innerText = lastUpdated;
+                    document.getElementById('player-stats-modal').style.display = 'block';
+                });
+
+                tdViewPlayer.appendChild(viewPlayerLink);
+
+                tr.appendChild(tdPlayerName);
+                tr.appendChild(tdStartTotal);
+                tr.appendChild(tdCurrentTotal);
+                tr.appendChild(tdFptThisWeek);
+                tr.appendChild(tdLastUpdated);
+                tr.appendChild(tdViewPlayer);
+
+                tableBody.appendChild(tr);
+            });
+
+            const paginationContainer = document.getElementById('pagination-container');
+            paginationContainer.innerHTML = '';
+
+            if (totalPages > 1) {
+                const paginationList = document.createElement('ul');
+                paginationList.classList.add('pagination');
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const paginationItem = document.createElement('li');
+                    paginationItem.classList.add('page-item');
+
+                    const paginationLink = document.createElement('a');
+                    paginationLink.classList.add('page-link');
+                    paginationLink.href = '#';
+                    paginationLink.innerText = i;
+
+                    if (i === currentPage) {
+                        paginationItem.classList.add('active');
+                    }
+
+                    paginationLink.addEventListener('click', () => {
+                        currentPage = i;
+                        renderTable();
+                    });
+
+                    paginationItem.appendChild(paginationLink);
+                    paginationList.appendChild(paginationItem);
+                }
+
+                paginationContainer.appendChild(paginationList);
+            }
+        };
+
+        const renderTopFive = () => {
+            const topFiveFishersContainer = document.getElementById('top-five-fishers-container');
+            const topFiveFptFishersContainer = document.getElementById('top-five-fpt-fishers-container');
+
+            const topFiveFishers = rows
+                .map(row => {
+                    const columns = row.split(',');
+                    const playerName = columns[0];
+                    const currentTotal = parseInt(columns[2]);
+                    return { playerName, currentTotal };
+                })
+                .sort((a, b) => b.currentTotal - a.currentTotal)
+                .slice(0, 5);
+
+            topFiveFishers.forEach(player => {
+                const listItem = document.createElement('li');
+                const playerName = document.createElement('span');
+                playerName.innerText = player.playerName;
+                const currentTotal = document.createElement('span');
+                currentTotal.innerText = player.currentTotal;
+                listItem.appendChild(playerName);
+                listItem.appendChild(document.createTextNode(': '));
+                listItem.appendChild(currentTotal);
+                topFiveFishersContainer.appendChild(listItem);
+            });
+
+            const topFiveFptFishers = rows
+                .map(row => {
+                    const columns = row.split(',');
+                    const playerName = columns[0];
+                    const fptThisWeek = parseInt(columns[3]);
+                    return { playerName, fptThisWeek };
+                })
+                .sort((a, b) => b.fptThisWeek - a.fptThisWeek)
+                .slice(0, 5);
+
+            topFiveFptFishers.forEach(player => {
+                const listItem = document.createElement('li');
+                const playerName = document.createElement('span');
+                playerName.innerText = player.playerName;
+                const fptThisWeek = document.createElement('span');
+                fptThisWeek.innerText = player.fptThisWeek;
+                listItem.appendChild(playerName);
+                listItem.appendChild(document.createTextNode(': '));
+                listItem.appendChild(fptThisWeek);
+                topFiveFptFishersContainer.appendChild(listItem);
+            });
+
+            document.body.insertBefore(topFiveFishersContainer.parentNode, document.body.firstChild);
+            document.body.insertBefore(topFiveFptFishersContainer.parentNode, document.body.firstChild);
+        };
+
+        const renderChart = () => {
+            const chartCanvas = document.getElementById('chart');
+            const chartData = {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Start Total',
+                        data: [],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Current Total',
+                        data: [],
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'FPT This Week',
+                        data: [],
+                        backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                        borderColor: 'rgba(255, 206, 86, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            };
+
+            rows.forEach(row => {
+                const columns = row.split(',');
+                const playerName = columns[0];
+                const startTotal = parseInt(columns[1]);
+                const currentTotal = parseInt(columns[2]);
+                const fptThisWeek = parseInt(columns[3]);
+
+                chartData.labels.push(playerName);
+                chartData.datasets[0].data.push(startTotal);
+                chartData.datasets[1].data.push(currentTotal);
+                chartData.datasets[2].data.push(fptThisWeek);
+            });
+
+            const chart = new Chart(chartCanvas, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true
+                            }
+                        }]
+                    }
+                }
+            });
+        };
+
+        const closeModal = () => {
+            document.getElementById('player-stats-modal').style.display = 'none';
+        };
+
+        window.addEventListener('click', event => {
+            if (event.target === document.getElementById('player-stats-modal')) {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        const renderPlayerStats = (playerName, startTotal, currentTotal, fptThisWeek, lastUpdated) => {
+            document.getElementById('player-name').innerText = playerName;
+            document.getElementById('start-total').innerText = startTotal;
+            document.getElementById('current-total').innerText = currentTotal;
+            document.getElementById('fpt-this-week').innerText = fptThisWeek;
+            document.getElementById('last-updated').innerText = lastUpdated;
+            document.getElementById('player-stats-modal').style.display = 'block';
+        };
+
+        fetch('fishing_data.csv')
+            .then(response => response.text())
+            .then(data => {
+                rows = data.split('\n').slice(1);
+                filteredRows = rows;
+                totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+                renderTable();
+                renderTopFive();
+                renderChart();
+            });
+
+        const searchBar = document.getElementById('search-bar');
+        searchBar.addEventListener('input', () => {
+            const filter = searchBar.value.toUpperCase();
+            filteredRows = rows.filter(row => row.toUpperCase().includes(filter));
+            currentPage = 1;
+            totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+            renderTable();
+        });
+
+        const searchButton = document.getElementById('search-button');
+        searchButton.addEventListener('click', () => {
+            const filter = searchBar.value.toUpperCase();
+            filteredRows = rows.filter(row => row.toUpperCase().includes(filter));
+            currentPage = 1;
+            totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+            renderTable();
+        });
+    </script>
+</body>
+</html>
