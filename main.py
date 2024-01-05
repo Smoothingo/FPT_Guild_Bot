@@ -9,7 +9,7 @@ import requests
 
 player_names = []
 API_KEY = 'bd168ed7-453d-456f-93a1-dc5e32676213'
-GUILD_NAME = 'Water Hydras'
+GUILD_NAME = ''
 LOCAL_PATH = 'fishing_data.csv'
 response = requests.get(f'https://api.hypixel.net/guild?key={API_KEY}&name={GUILD_NAME}')
 data = response.json()
